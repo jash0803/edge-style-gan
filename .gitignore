@@ -1,3 +1,10 @@
+*.ckpt
+/prune-outputs/
+/qnnpack-quantized-outputs/
+/outputs/
+/prune-sparse-outputs/
+/images/
+.DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

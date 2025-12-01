@@ -1,0 +1,795 @@
+%----------------------------------------------------------------------------------------
+%    PACKAGES AND THEMES
+%----------------------------------------------------------------------------------------
+
+\documentclass[aspectratio=169,xcolor=dvipsnames]{beamer}
+\usetheme{SimpleDarkBlue}
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+%----------------------------------------------------------------------------------------
+%    TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\title{EdgeStyleGAN: Lightweight and Efficient StyleGAN for Real-Time Image Synthesis}
+
+\author{Jash Shah - 202201016@dau.ac.in}
+
+\institute
+{
+    Dhirubhai Ambani University
+}
+\date{\today}
+
+%----------------------------------------------------------------------------------------
+%    PRESENTATION SLIDES
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+% Title
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% Overview
+\begin{frame}{Overview}
+    \tableofcontents
+\end{frame}
+
+%------------------------------------------------
+\section{Introduction}
+%------------------------------------------------
+
+\begin{frame}{Abstract}
+    \begin{itemize}
+        Generative Adversarial Networks (GANs), and particularly StyleGAN, have demonstrated state-of-the-art performance in high-fidelity image synthesis. However, the computational and memory demands of StyleGAN severely restrict its applicability in resource-constrained environments such as mobile and edge devices. MobileStyleGAN addressed this through knowledge distillation and DWT-based architecture, achieving 68.7\% parameter reduction. However, the authors left pruning and quantization for future exploration. In this work, we present EdgeStyleGAN, which further optimizes MobileStyleGAN through unstructured pruning and static quantization. Our approach systematically reduces the model size and inference latency. Experimental results demonstrate that EdgeStyleGAN achieves 56.2\% further parameter reduction (from 8.85M to 3.88M) and 2.28$\times$ compression ratio while maintaining reasonable perceptual quality with FID score of 16.57. This work completes the compression pipeline, achieving 86.3\% total parameter reduction from StyleGAN2, highlighting a practical pathway for democratizing GAN-based content generation on low-power devices.
+    \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{Background}
+%------------------------------------------------
+
+\begin{frame}{Why StyleGAN?}
+    \begin{block}{State-of-the-Art Image Synthesis}
+        \begin{itemize}
+            \item \textbf{Revolutionary quality}: Photorealistic faces at 1024×1024 resolution
+            \item \textbf{FID score}: 2.84 on FFHQ dataset, near-perfect visual fidelity
+            \item \textbf{Versatile applications}: Faces, artwork, design, fashion, avatars
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Key Innovations}
+        \begin{itemize}
+            \item Style-based architecture with latent space control
+            \item Produces images indistinguishable from real photographs
+            \item Fine-grained control over image attributes (pose, lighting, features)
+        \end{itemize}
+    \end{block}
+    
+    \begin{alertblock}{The Challenge}
+        \textbf{Computational barrier}: Even MobileStyleGAN requires significant resources (8.85M parameters, 33.78 MB model size) for mobile deployment
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{The Problem: Deployment Barrier}
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{Hardware Constraints}
+        \begin{itemize}
+            \item Mobile/edge devices have no dedicated GPUs
+            \item Limited RAM and battery life
+            \item ARM processors vs. NVIDIA CUDA cores
+        \end{itemize}
+        
+        \column{0.5\textwidth}
+        \textbf{MobileStyleGAN Baseline}
+        \begin{itemize}
+            \item 8.85M parameters
+            \item 33.78 MB model size
+            \item Still requires optimization for edge devices
+        \end{itemize}
+    \end{columns}
+    
+    \vspace{0.5cm}
+    
+    \begin{block}{Real-World Impact}
+        \begin{itemize}
+            \item \textbf{AR/VR personalization}: Real-time avatar generation blocked
+            \item \textbf{Mobile creative tools}: Cannot run on smartphones/tablets
+            \item \textbf{Edge AI}: IoT devices and embedded systems excluded
+            \item \textbf{Latency}: Server-based inference adds network delays
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Motivation: Why Mobile Deployment Matters}
+    \begin{itemize}
+        \item \textbf{Privacy}: On-device generation, no data sent to cloud servers
+        \item \textbf{Latency}: Real-time generation for interactive applications
+        \item \textbf{Cost}: Eliminate expensive GPU cloud infrastructure
+        \item \textbf{Accessibility}: Democratize AI art and personalization tools
+        \item \textbf{Scalability}: Billions of mobile devices worldwide
+        \item \textbf{Offline capability}: Works without internet connectivity
+    \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{MobileStyleGAN Architecture}
+%------------------------------------------------
+
+\begin{frame}{MobileStyleGAN: Knowledge Distillation Approach}
+    \begin{block}{Teacher-Student Paradigm}
+        \begin{itemize}
+            \item \textbf{Teacher}: Pre-trained StyleGAN2 (frozen, 28.27M parameters)
+            \item \textbf{Student}: MobileStyleGAN (trainable, 8.85M parameters)
+            \item Student learns to mimic teacher outputs through knowledge distillation
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Key Architectural Changes}
+        \begin{itemize}
+            \item \textbf{Depthwise Convolutions}: Replace standard convolutions to reduce parameters
+            \item \textbf{DWT-based Upsampling}: Use Discrete Wavelet Transform instead of bilinear interpolation
+            \item \textbf{Frequency Domain Processing}: Operate in frequency domain for efficiency
+            \item \textbf{Shared Mapping Network}: Same mapping network as teacher
+        \end{itemize}
+    \end{block}
+    
+    \begin{alertblock}{Future Work}
+        MobileStyleGAN authors left \textbf{pruning} and \textbf{quantization} for future exploration
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{DWT: Discrete Wavelet Transform}
+    \begin{block}{What is DWT?}
+        Mathematical transform that decomposes images into frequency components (low-pass and high-pass coefficients)
+    \end{block}
+    
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{DWT Forward (Analysis)}
+        \begin{itemize}
+            \item Decomposes image into:
+            \item 1 low-frequency component (LL)
+            \item 3 high-frequency components (LH, HL, HH)
+            \item 4× fewer parameters per channel
+        \end{itemize}
+        
+        \column{0.5\textwidth}
+        \textbf{DWT Inverse (Synthesis)}
+        \begin{itemize}
+            \item Reconstructs image from coefficients
+            \item Efficient upsampling (2× resolution)
+            \item Preserves image quality
+            \item Hardware-friendly operations
+        \end{itemize}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    
+    \begin{exampleblock}{In MobileStyleGAN}
+        Each block outputs 12 channels: 3 low-frequency + 9 high-frequency (3×3) coefficients. Final DWT inverse converts to RGB.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{DWT Decomposition Example}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.6\linewidth]{9.png}
+        \caption{Single-level DWT decomposition: original image is split into low-frequency (LL) and high-frequency (LH, HL, HH) subbands capturing coarse structure and edge details.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{MobileStyleGAN Architecture Details}
+    \begin{block}{Mobile Synthesis Network Structure}
+        \begin{enumerate}
+            \item \textbf{Constant Input}: Initial constant tensor (512 channels)
+            \item \textbf{Initial Styled Convolution}: Style-modulated conv layer
+            \item \textbf{Multichannel Image}: Converts to frequency domain (12 channels)
+            \item \textbf{Mobile Synthesis Blocks} (7 blocks):
+            \begin{itemize}
+                \item IDWT Upsample: 2× upsampling via DWT inverse
+                \item Two Styled Convolutions with depthwise conv
+                \item Multichannel Image: Generate frequency representation
+            \end{itemize}
+            \item \textbf{Final DWT Inverse}: Convert frequency domain to RGB image
+        \end{enumerate}
+    \end{block}
+    
+    \begin{block}{Channel Progression}
+        $512 \rightarrow 512 \rightarrow 512 \rightarrow 512 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 64$
+    \end{block}
+    
+    \begin{block}{Key Innovation}
+        Operating in frequency domain allows efficient processing while maintaining image quality through DWT reconstruction
+    \end{block}
+\end{frame}
+
+\begin{frame}{Prediction Head: StyleGAN2 vs MobileStyleGAN}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.5\linewidth]{1.png}
+        \caption{Prediction head comparison: StyleGAN2 (left) vs MobileStyleGAN (right)}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \begin{block}{Key Differences}
+        \begin{itemize}
+            \item \textbf{StyleGAN2}: Uses direct RGB conversion (\texttt{toRGB}) with bilinear upsampling (\texttt{Up}) and skip connections
+            \item \textbf{MobileStyleGAN}: Uses frequency domain conversion (\texttt{toFreq}) with IDWT for upsampling and reconstruction
+            \item \textbf{Efficiency}: IDWT inherently performs 2× upsampling (512×512 → 1024×1024) while operating in frequency domain
+            \item \textbf{Auxiliary Head}: MobileStyleGAN includes an auxiliary head producing 512×512 RGB output for multi-scale training
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Modulated Convolution Architectures}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.5\linewidth]{2.png}
+        \caption{Evolution of modulated convolution: Standard (left), Depthwise Separable (middle), Trainable Demodulation (right)}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    
+    \begin{block}{Architecture Evolution}
+        \begin{itemize}
+            \item \textbf{Left}: Standard modulated convolution with 3×3 conv, modulation/demodulation on weights
+            \item \textbf{Middle}: Depthwise separable modulated conv (DWConv3×3 + Conv1×1) for efficiency
+            \item \textbf{Right}: Trainable demodulation parameter (\texttt{p\_demod}) instead of direct style code connection
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{MobileStyleGAN Innovation}
+        Uses depthwise separable convolutions to reduce parameters while maintaining style modulation capabilities. The trainable demodulation allows more flexible feature transformation.
+    \end{block}
+\end{frame}
+
+\begin{frame}{Upscale Block: StyleGAN2 vs MobileStyleGAN}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.5\linewidth]{3.png}
+        \caption{Upscale block comparison: StyleGAN2 (left) vs MobileStyleGAN (right)}
+    \end{figure}
+
+\end{frame}
+\begin{frame}
+    
+    \begin{block}{StyleGAN2 Upscale Block}
+        \begin{itemize}
+            \item Uses \texttt{ModulatedConvTranspose2d} for upsampling
+            \item Followed by \texttt{upfirdn} (upsampling, filtering, downsampling) operation
+            \item Channel count: $c_{in} \rightarrow c_{out}$ (no reduction)
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{MobileStyleGAN Upscale Block}
+        \begin{itemize}
+            \item Uses \texttt{IDWT} (Inverse Discrete Wavelet Transform) for upsampling
+            \item Channel reduction: $c_{in} \rightarrow c_{in}/4$ (4× reduction after IDWT)
+            \item Followed by \texttt{DWModulatedConv2d} (depthwise modulated convolution)
+            \item Final output: $c_{out}$ channels
+        \end{itemize}
+    \end{block}
+    
+    \begin{exampleblock}{Efficiency Gain}
+        IDWT provides 2× spatial upsampling while reducing channels by 4×, significantly reducing computational cost compared to transpose convolution.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Building Block: StyleGAN2 vs MobileStyleGAN}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.5\linewidth]{4.png}
+        \caption{Building block comparison: StyleGAN2 (left) vs MobileStyleGAN (right)}
+    \end{figure}
+\end{frame}
+\begin{frame}
+    
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{StyleGAN2 Block}
+        \begin{itemize}
+            \item \texttt{ModulatedConvTranspose2d} + \texttt{upfirdn}
+            \item \texttt{ModulatedConv2d}
+            \item \texttt{toRGB} conversion
+            \item Skip connection with \texttt{Up} operation
+        \end{itemize}
+        
+        \column{0.5\textwidth}
+        \textbf{MobileStyleGAN Block}
+        \begin{itemize}
+            \item \texttt{IDWT} upsampling
+            \item Two \texttt{DWModulatedConv2d} layers
+            \item \texttt{toFreq} conversion
+            \item Skip connection with \texttt{IDWT}
+        \end{itemize}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{Key Architectural Changes}
+        \begin{itemize}
+            \item \textbf{Convolution}: Standard → Depthwise separable (reduces parameters)
+            \item \textbf{Upsampling}: Transpose conv + upfirdn → IDWT (more efficient)
+            \item \textbf{Domain}: RGB spatial → Frequency domain (DWT coefficients)
+            \item \textbf{Skip Connection}: RGB addition → Frequency domain addition
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Training Framework: Knowledge Distillation}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.5\linewidth]{5.png}
+        \caption{Knowledge distillation training framework for MobileStyleGAN}
+    \end{figure}
+\end{frame}
+\begin{frame}
+    
+    \begin{block}{Training Pipeline}
+        \begin{enumerate}
+            \item \textbf{Data Preparation}: Latent code $z$ → Mapping Network → Style vector + Noise
+            \item \textbf{Teacher (StyleGAN2)}: Generates $I_{teacher}$ and multi-resolution pyramid $I_{teacher}^{pyramid}$
+            \item \textbf{Student (MobileStyleGAN)}: Generates $I_{student}$ with multi-resolution features
+            \item \textbf{Loss Computation}: Three loss functions guide student training
+        \end{enumerate}
+    \end{block}
+    
+    \begin{block}{Loss Functions}
+        \begin{itemize}
+            \item \textbf{$L_{pix}$}: Pixel-wise loss comparing teacher and student outputs at multiple resolutions
+            \item \textbf{$L_{perc}$}: Perceptual loss using VGG features for semantic similarity
+            \item \textbf{$L_{GAN}$}: Adversarial loss ensuring student generates realistic images
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{MobileStyleGAN vs StyleGAN2: Architectural Comparison}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c}
+            \toprule
+            \textbf{Feature} & \textbf{StyleGAN2} & \textbf{MobileStyleGAN} \\
+            \midrule
+            Parameters & 28.27M & 8.85M (68.7\% reduction) \\
+            Computation (GMAC) & 143.15 & 15.09 (89.5\% reduction) \\
+            Upsampling Method & Bilinear interpolation & DWT inverse \\
+            Convolution Type & Standard conv & Depthwise conv \\
+            Domain & Spatial (RGB) & Frequency (DWT coefficients) \\
+            Training Method & Standard GAN training & Knowledge distillation \\
+            FID (FFHQ, 1024×1024) & 2.84 & 7.75 \\
+            Inference Speed (CPU) & 4.3s & 1.2s (PyTorch), 0.16s (OpenVINO) \\
+            Model Size & Large & 33.78 MB (checkpoint: 722.5 MB) \\
+            \bottomrule
+        \end{tabular}
+        \caption{Architectural and performance comparison: StyleGAN2 vs MobileStyleGAN}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{MobileStyleGAN Achievements}
+        \begin{itemize}
+            \item \textbf{68.7\%} parameter reduction from StyleGAN2
+            \item \textbf{3.6×} faster inference on CPU
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+%------------------------------------------------
+\section{Our Approach}
+%------------------------------------------------
+
+\begin{frame}{EdgeStyleGAN Approach}
+    \begin{block}{Building on MobileStyleGAN}
+        MobileStyleGAN authors left \textbf{pruning} and \textbf{quantization} for future work. We explore these optimizations to further compress the model.
+    \end{block}
+    
+    \vspace{0.3cm}
+    
+    Two key optimizations:
+    \begin{itemize}
+        \item \textbf{Unstructured Pruning:} remove individual weights based on importance.
+        \item \textbf{Static Quantization:} reduce numerical precision from FP32 to INT8.
+    \end{itemize}
+    \vspace{0.3cm}
+    \textit{Further compressing MobileStyleGAN for edge deployment.}
+\end{frame}
+
+\begin{frame}{Optimization 1: Unstructured Pruning}
+    \begin{block}{What is Unstructured Pruning?}
+        Remove individual weights (not entire channels/filters) based on importance, creating sparse weight matrices
+    \end{block}
+    
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{How it Works:}
+        \begin{itemize}
+            \item Analyze weight magnitude/importance
+            \item Remove low-magnitude weights
+            \item Create sparse weight matrices
+            \item Fine-tune remaining weights
+        \end{itemize}
+        
+        \column{0.5\textwidth}
+        \textbf{Benefits:}
+        \begin{itemize}
+            \item Higher sparsity possible
+            \item Faster inference with sparse support
+            \item Flexible pruning granularity
+            \item Better parameter reduction
+        \end{itemize}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    
+    \begin{exampleblock}{Pruning Amount $\rightarrow$ Sparsity \& FID}
+\begin{center}
+\begin{tabular}{c c}
+\begin{tabular}{c}
+0.2 $\rightarrow$ 16.63\% (FID: 11.8868) \\
+0.4 $\rightarrow$ 33.26\% (FID: 13.567)
+\end{tabular}
+&
+\begin{tabular}{c}
+0.6 $\rightarrow$ 49.88\% \\
+0.8 $\rightarrow$ 66.51\%
+\end{tabular}
+\end{tabular}
+\end{center}
+\end{exampleblock}
+
+
+\end{frame}
+
+\begin{frame}{Unstructured Pruning: Visual Results}
+    \begin{columns}[t]
+        \column{0.25\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{20.png}\\[0.2cm]
+        {\small 20\% pruning\\Sparsity: 16.63\%\\FID: 11.8868}
+        
+        \column{0.25\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{40.png}\\[0.2cm]
+        {\small 40\% pruning\\Sparsity: 33.26\%\\FID: 13.567}
+        
+        \column{0.25\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{60.png}\\[0.2cm]
+        {\small 60\% pruning\\Sparsity: 49.88\%}
+        
+        \column{0.25\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{80.png}\\[0.2cm]
+        {\small 80\% pruning\\Sparsity: 66.51\%}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Structured vs Unstructured Pruning}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.9\linewidth]{7.png}
+        \caption{Structured vs Unstructured Pruning: A high-level view of how pruning functions in compressing deep neural networks. Traditional pruning schemes can be divided into two classes, that is, unstructured pruning that simply removes inter-layer connections between neurons while structured pruning removes neurons as well as their connected weights, or channels with their corresponding kernels w.r.t. the convolutional neural network}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Sparse Matrix Storage: COO Format}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.9\linewidth]{8.jpg}
+        \caption{Coordinate Format (COO): A sparse matrix representation that stores every nonzero value along with its row index and column index}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Optimization 2: Static Quantization}
+    \begin{block}{What is Static Quantization?}
+        Reduce numerical precision from FP32 to INT8 for both weights and activations, calibrated before inference
+    \end{block}
+    
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{Our Implementation:}
+        \begin{itemize}
+            \item Method: Static Quantization
+            \item Backend: QNNPACK (ARM optimized)
+            \item FP32 → INT8 (4× smaller)
+            \item Compression: 2.28× ratio
+        \end{itemize}
+        
+        \column{0.5\textwidth}
+        \textbf{Results:}
+        \begin{itemize}
+            \item Model size: 33.78 MB → 14.81 MB
+            \item Parameters: 8.85M → 3.88M (56.2\% reduction)
+            \item FID Score: 16.57
+            \item Optimized for mobile/edge devices
+        \end{itemize}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    
+    \begin{exampleblock}{QNNPACK Backend}
+        Optimized for ARM processors (phones, tablets, edge devices) using ARM NEON instructions
+    \end{exampleblock}
+    
+    \textbf{Advantage}: Full quantization (weights + activations) for maximum speedup
+\end{frame}
+
+\begin{frame}{Quantization Process}
+    \begin{figure}
+        \centering
+        \includegraphics[keepaspectratio,width=0.9\linewidth]{6.png}
+        \caption{Quantization Process: Mapping FP32 values to INT8 representation. Note that zero in FP32 does not necessarily map to zero in INT8 after quantization}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Pruning vs Quantization Comparison}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c c}
+            \toprule
+            \textbf{Feature} & \textbf{Unstructured} & \textbf{Structured} & \textbf{Sparse Format} \\
+            \midrule
+            File Size & No reduction & Reduces & Reduces \\
+            Inference Speed & Faster & Faster & Same \\
+            Hardware Support & Needs sparse support & Works everywhere & Storage only \\
+            \bottomrule
+        \end{tabular}
+        \caption{Comparison of pruning strategies}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c}
+            \toprule
+            \textbf{Feature} & \textbf{Dynamic} & \textbf{Static} \\
+            \midrule
+            When quantization happens & At runtime & At calibration time \\
+            Calibration data needed & ❌ No & ✅ Yes \\
+            Weights & ✅ Quantized (int8) & ✅ Quantized (int8) \\
+            Activations & ❌ Float32 & ✅ Quantized (int8) \\
+            Speed & Faster setup, slower inference & Slower setup, faster inference \\
+            Accuracy & Lower & Higher \\
+            Best for & Models with many Linear layers & Production deployment \\
+            \bottomrule
+        \end{tabular}
+        \caption{Static vs Dynamic Quantization}
+    \end{table}
+\end{frame}
+
+%------------------------------------------------
+\section{Results}
+%------------------------------------------------
+
+\begin{frame}{Results Summary}
+    \begin{block}{Original Model}
+        \begin{itemize}
+            \item Size: 33.78 MB (checkpoint: 722.5 MB)
+            \item Parameters: 8,852,079 (all trainable)
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{After Unstructured Pruning}
+        \begin{itemize}
+            \item Pruned models: 35.5 MB (20\%, 40\%, 60\%, 80\% sparsity)
+            \item Sparsity levels: 16.63\%, 33.26\%, 49.88\%, 66.51\%
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{After Static Quantization (QNNPACK)}
+        \begin{itemize}
+            \item Quantized size: 14.81 MB (checkpoint: 20.7 MB)
+            \item Compression ratio: \textbf{2.28×}
+            \item Parameters: 3,878,031 (\textbf{56.2\% reduction})
+            \item FID Score: 16.57
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Sample Image}
+    % Replace "sample.png" with your generated image
+    \begin{figure}
+       \includegraphics[width=0.9\linewidth]{sample.png}
+       \caption{Generated samples using MobileStyleGAN.}
+    \end{figure}
+\end{frame}
+
+
+
+\begin{frame}{MobileStyleGAN vs EdgeStyleGAN: Compression Comparison}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c}
+            \toprule
+            \textbf{Metric} & \textbf{MobileStyleGAN} & \textbf{EdgeStyleGAN (Quantized)} \\
+            \midrule
+            Parameters & 8,852,079 & 3,878,031 \\
+            Parameter Reduction & Baseline & \textbf{56.2\% reduction} \\
+            Model Size (in-memory) & 33.78 MB & 14.81 MB \\
+            Checkpoint Size & 722.5 MB & 20.7 MB \\
+            Compression Ratio & Baseline & \textbf{2.28×} \\
+            Size Reduction & Baseline & \textbf{97.1\% smaller checkpoint} \\
+            FID Score (FFHQ) & 7.75 & 16.57 \\
+            Quantization & FP32 & INT8 (QNNPACK) \\
+            Backend & Standard PyTorch & QNNPACK (ARM optimized) \\
+            \bottomrule
+        \end{tabular}
+        \caption{Performance comparison: MobileStyleGAN vs EdgeStyleGAN (quantized)}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{Key Achievements}
+        \begin{itemize}
+            \item \textbf{56.2\%} further parameter reduction from MobileStyleGAN
+            \item \textbf{34.9×} checkpoint size reduction (722.5 MB → 20.7 MB)
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Model Size Comparison}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c}
+            \toprule
+            \textbf{Model} & \textbf{Checkpoint Size} \\
+            \midrule
+            Original (mobilestylegan\_ffhq\_v2.ckpt) & 722.5 MB \\
+            Pruned 20\% (pruned\_20.ckpt) & 35.5 MB \\
+            Pruned 40\% (pruned\_40.ckpt) & 35.5 MB \\
+            Pruned 60\% (pruned\_60.ckpt) & 35.5 MB \\
+            Pruned 80\% (pruned\_80.ckpt) & 35.5 MB \\
+            Quantized (qnnpack\_quantized.ckpt) & \textbf{20.7 MB} \\
+            \bottomrule
+        \end{tabular}
+        \caption{Checkpoint file sizes for different compression methods}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{Key Findings}
+        \begin{itemize}
+            \item Quantization achieves \textbf{34.9×} reduction from original checkpoint (722.5 MB → 20.7 MB)
+            \item Quantized model is \textbf{58.2\%} smaller than pruned models
+            \item Best compression achieved through static quantization with QNNPACK backend
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Quantization Backend Comparison}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c}
+            \toprule
+            \textbf{Feature} & \textbf{FBGEMM} & \textbf{QNNPACK} \\
+            \midrule
+            CPU architecture & x86 & ARM \\
+            Best for & Servers, PCs & Phones, tablets, edge devices \\
+            Batch size & Large & Small (often 1) \\
+            Optimized instructions & AVX2, AVX512, VNNI & ARM NEON \\
+            Quantization types & Static \& dynamic & Static \\
+            Deployment & Desktop/server inference & Mobile inference \\
+            \bottomrule
+        \end{tabular}
+        \caption{QNNPACK vs FBGEMM quantization backends}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{Our Choice: QNNPACK}
+        Selected QNNPACK for ARM-based mobile and edge device deployment, optimized for single-image inference
+    \end{block}
+\end{frame}
+
+%------------------------------------------------
+\section{Applications}
+%------------------------------------------------
+
+\begin{frame}{Applications}
+    \begin{itemize}
+        \item Real-time \textbf{AR/VR personalization}.
+        \item \textbf{Creative tools} on mobile devices.
+        \item AI-generated avatars and filters.
+        \item Edge AI for low-power devices.
+    \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{Conclusion}
+%------------------------------------------------
+
+\begin{frame}{Complete Pipeline: StyleGAN2 → MobileStyleGAN → EdgeStyleGAN}
+    \begin{table}
+        \centering
+        \footnotesize
+        \begin{tabular}{l c c c}
+            \toprule
+            \textbf{Metric} & \textbf{StyleGAN2} & \textbf{MobileStyleGAN} & \textbf{EdgeStyleGAN} \\
+            \midrule
+            Parameters & 28.27M & 8.85M & 3.88M \\
+            Reduction vs StyleGAN2 & Baseline & 68.7\% & \textbf{86.3\%} \\
+            Checkpoint Size & Large & 722.5 MB & \textbf{20.7 MB} \\
+            Compression Method & - & Knowledge Distillation & Quantization \\
+            FID Score & 2.84 & 7.75 & 16.57 \\
+            Upsampling & Bilinear & DWT & DWT \\
+            Convolution & Standard & Depthwise & Depthwise (INT8) \\
+            \bottomrule
+        \end{tabular}
+        \caption{Complete evolution: StyleGAN2 → MobileStyleGAN → EdgeStyleGAN}
+    \end{table}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{Progressive Compression}
+        \begin{itemize}
+            \item \textbf{Step 1}: StyleGAN2 (28.27M) → MobileStyleGAN (8.85M) via knowledge distillation
+            \item \textbf{Step 2}: MobileStyleGAN (8.85M) → EdgeStyleGAN (3.88M) via quantization
+            \item \textbf{Total}: \textbf{86.3\%} parameter reduction from original StyleGAN2
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Conclusion and Future Work}
+    \begin{block}{Key Achievements}
+        \begin{itemize}
+            \item Explored pruning and quantization (left as future work by MobileStyleGAN authors)
+            \item Successfully compressed MobileStyleGAN from 722.5 MB to 20.7 MB (\textbf{34.9× reduction})
+            \item Reduced parameters from 8.85M to 3.88M (\textbf{56.2\% reduction})
+            \item Achieved 2.28× compression ratio with static quantization
+            \item Total \textbf{86.3\%} parameter reduction from original StyleGAN2
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Future Work}
+        \begin{itemize}
+            \item Combine pruning and quantization for further compression
+            \item Hardware-aware optimization for specific edge devices
+            \item Fine-tuning strategies to improve FID after compression
+            \item Real-time inference benchmarking on mobile hardware
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{References}
+    \footnotesize
+    \begin{thebibliography}{99}
+
+    \bibitem[Karras et al.(2019)]{stylegan2019}
+    Tero Karras, Samuli Laine, and Timo Aila, “A Style-Based Generator Architecture for Generative Adversarial Networks,” arXiv:1812.04948, 2018. \\
+    \url{https://arxiv.org/abs/1812.04948}
+
+    \vspace{0.3em}
+
+    \bibitem[Lee et al.(2021)]{mobilestylegan2021}
+    Sergei Belousov, “MobileStyleGAN: A Lightweight Convolutional Neural Network for High-Fidelity Image Synthesis,” arXiv:2104.04767, 2021. \\
+    \url{https://arxiv.org/abs/2104.04767}
+
+    \end{thebibliography}
+\end{frame}
+
+
+%------------------------------------------------
+
+\begin{frame}
+    \Huge{\centerline{\textbf{Thank You!}}}
+\end{frame}
+
+%----------------------------------------------------------------------------------------
+
+\end{document}

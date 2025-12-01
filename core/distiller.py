@@ -284,3 +284,111 @@ class Distiller(pl.LightningModule):
             inputs=[ct.TensorType(name="style", shape=style.shape)]
         )
         synthesis_net_coreml.save(os.path.join(output_dir, "SynthesisNetwork.mlmodel"))
+
+    def compress_model(self, compression_type='quantize', **kwargs):
+        """
+        Apply compression to student model
+        
+        Args:
+            compression_type: 'quantize', 'prune', or 'both'
+            **kwargs: Compression-specific arguments
+                - For quantization: backend ('fbgemm' or 'qnnpack')
+                - For pruning: amount (0.0 to 1.0), method ('magnitude' or 'random')
+        
+        Returns:
+            Compressed student model
+        """
+        from core.compression import ModelCompressor
+        
+        compressor = ModelCompressor(self.student)
+        
+        # Save original state if needed
+        if kwargs.get('save_original', False):
+            compressor.save_original_state()
+        
+        if compression_type == 'quantize':
+            # Static quantization
+            print("Applying static quantization...")
+            example_style = torch.randn(1, self.mapping_net.style_dim).to(self.device_info.device)
+            example_w = self.mapping_net(example_style)
+            example_inputs = (example_w,)
+            
+            self.student = compressor.quantize_static(
+                example_inputs,
+                backend=kwargs.get('backend', 'fbgemm')
+            )
+            print(f"Quantized model size: {compressor.get_model_size(self.student):.2f} MB")
+            
+        elif compression_type == 'prune':
+            # Pruning
+            print(f"Applying {kwargs.get('method', 'magnitude')} pruning...")
+            amount = kwargs.get('amount', 0.2)
+            method = kwargs.get('method', 'magnitude')
+            
+            original_size = compressor.get_model_size()
+            self.student = compressor.prune_unstructured(
+                amount=amount,
+                method=method
+            )
+            pruned_size = compressor.get_model_size()
+            sparsity = compressor.get_sparsity()
+            
+            print(f"Pruning complete:")
+            print(f"  - Original size: {original_size:.2f} MB")
+            print(f"  - Pruned size: {pruned_size:.2f} MB")
+            print(f"  - Model sparsity: {sparsity*100:.2f}%")
+            
+        elif compression_type == 'both':
+            # Prune first, then quantize
+            print("Applying pruning + quantization...")
+            
+            # Prune first
+            amount = kwargs.get('prune_amount', 0.2)
+            method = kwargs.get('prune_method', 'magnitude')
+            
+            original_size = compressor.get_model_size()
+            self.student = compressor.prune_unstructured(
+                amount=amount,
+                method=method
+            )
+            pruned_size = compressor.get_model_size()
+            sparsity = compressor.get_sparsity()
+            
+            print(f"After pruning:")
+            print(f"  - Size: {pruned_size:.2f} MB")
+            print(f"  - Sparsity: {sparsity*100:.2f}%")
+            
+            # Then quantize
+            example_style = torch.randn(1, self.mapping_net.style_dim).to(self.device_info.device)
+            example_w = self.mapping_net(example_style)
+            example_inputs = (example_w,)
+            
+            self.student = compressor.quantize_static(
+                example_inputs,
+                backend=kwargs.get('backend', 'fbgemm')
+            )
+            final_size = compressor.get_model_size(self.student)
+            
+            print(f"After quantization:")
+            print(f"  - Final size: {final_size:.2f} MB")
+            print(f"  - Compression ratio: {original_size/final_size:.2f}x")
+        else:
+            raise ValueError(f"Unknown compression type: {compression_type}")
+        
+        return self.student
+    
+    def get_model_stats(self):
+        """Get statistics about the student model"""
+        from core.compression import ModelCompressor
+        compressor = ModelCompressor(self.student)
+        
+        size_mb = compressor.get_model_size()
+        total_params, trainable_params = compressor.get_num_parameters()
+        sparsity = compressor.get_sparsity()
+        
+        return {
+            'size_mb': size_mb,
+            'total_params': total_params,
+            'trainable_params': trainable_params,
+            'sparsity': sparsity
+        }

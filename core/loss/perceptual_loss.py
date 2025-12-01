@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+from torchvision.models import VGG16_Weights
 
 
 class PerceptualNetwork(nn.Module):
@@ -12,7 +13,22 @@ class PerceptualNetwork(nn.Module):
     ):
         super().__init__()
         assert hasattr(models, arch)
-        self.net = getattr(models, arch)(pretrained=True).features
+        # Use new weights API to avoid deprecation warnings
+        if arch == "vgg16":
+            weights = VGG16_Weights.IMAGENET1K_V1
+            self.net = getattr(models, arch)(weights=weights).features
+        else:
+            # For other architectures, try to use weights enum if available
+            try:
+                weights_enum = getattr(models, f"{arch.upper()}_Weights", None)
+                if weights_enum is not None:
+                    self.net = getattr(models, arch)(weights=weights_enum.DEFAULT).features
+                else:
+                    # Fallback to old API
+                    self.net = getattr(models, arch)(pretrained=True).features
+            except (AttributeError, TypeError):
+                # Fallback to old API for compatibility
+                self.net = getattr(models, arch)(pretrained=True).features
         self.layers = layers
 
     def forward(self, x):

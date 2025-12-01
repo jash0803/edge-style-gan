@@ -75,6 +75,51 @@ python train.py --cfg configs/mobile_stylegan_ffhq.json --ckpt <path_to_ckpt> --
 python train.py --cfg configs/mobile_stylegan_ffhq.json --ckpt <path_to_ckpt> --export-model coreml --export-dir <output_dir>
 ```
 
+## Model Compression (Quantization & Pruning)
+
+Compress your trained model using quantization and/or pruning to further reduce model size:
+
+### Pruning Only
+```bash
+python compress_model.py \
+    --cfg configs/mobile_stylegan_ffhq.json \
+    --ckpt <path_to_ckpt> \
+    --method prune \
+    --amount 0.3 \
+    --prune-method magnitude \
+    --output <output_path>
+```
+
+### Quantization Only
+```bash
+python compress_model.py \
+    --cfg configs/mobile_stylegan_ffhq.json \
+    --ckpt <path_to_ckpt> \
+    --method quantize \
+    --backend fbgemm \
+    --output <output_path>
+```
+
+### Both Pruning + Quantization (Recommended)
+```bash
+python compress_model.py \
+    --cfg configs/mobile_stylegan_ffhq.json \
+    --ckpt <path_to_ckpt> \
+    --method both \
+    --amount 0.2 \
+    --prune-method magnitude \
+    --backend fbgemm \
+    --output <output_path>
+```
+
+**Options:**
+- `--method`: Choose `prune`, `quantize`, or `both`
+- `--amount`: Pruning amount (0.0 to 1.0), e.g., 0.2 = 20% of weights
+- `--prune-method`: `magnitude` (recommended) or `random`
+- `--backend`: `fbgemm` (CPU) or `qnnpack` (mobile)
+
+**Note:** Compression may slightly reduce image quality. Start with 20% pruning and adjust based on your quality requirements.
+
 ## Deployment using OpenVINO
 
 We provide external library [random_face](https://github.com/bes-dev/random_face) as an example of deploying our model at the edge devices using the [OpenVINO](https://github.com/openvinotoolkit/openvino) framework.

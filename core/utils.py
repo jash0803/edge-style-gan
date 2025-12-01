@@ -25,9 +25,25 @@ def tensor_to_img(t, normalize=True, range=(-1, 1), to_numpy=True, rgb2bgr=True)
 
 def download_ckpt(url, name, md5):
     print(f"load pretrained model: {name}...")
+    import os
+    
+    # First check if file exists in current directory
+    local_path = os.path.join(os.getcwd(), name)
+    if os.path.exists(local_path):
+        print(f"Found local checkpoint: {local_path}")
+        ckpt = torch.load(local_path, map_location="cpu", weights_only=False)
+        return ckpt
+    
+    # Otherwise, try to download to /tmp
     ckpt_path = f"/tmp/{name}"
+    if os.path.exists(ckpt_path):
+        print(f"Found cached checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        return ckpt
+    
+    # Download if not found locally
     gdown.cached_download(url, ckpt_path, md5=md5)
-    ckpt = torch.load(ckpt_path, map_location="cpu")
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     return ckpt
 
 

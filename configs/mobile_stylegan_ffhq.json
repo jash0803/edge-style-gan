@@ -46,5 +46,18 @@
         "reg_d_interval": 16,
         "truncated": false,
         "stylemix_p": [0.0, 0.0]
+    },
+    "compression": {
+        "enabled": false,
+        "method": "both",
+        "pruning": {
+            "amount": 0.2,
+            "method": "magnitude",
+            "iterative": false
+        },
+        "quantization": {
+            "type": "static",
+            "backend": "fbgemm"
+        }
     }
 }
